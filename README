@@ -1,6 +1,16 @@
 About
 =====
 
-This is a demonstration for Pocketsphinx on Android
+Esta es una aplicación Android realizada para mi Trabajo de fin de grado (TFG) en la Facultad de Informática de la Universidad de la Coruña.
 
-See for details http://cmusphinx.sourceforge.net/wiki/tutorialandroid
+Funcionalidades:
+-Grabar, buscar, compartir notas de voz
+-Busqueda en el contenido de las grabaciones.
+-Asistente por voz para funcionalidades de grabar, buscar, reproducir y filtrar.
+
+Tecnologías:
+-Android
+-Pocketsphinx
+-Lucene
+-Android TTS
+
