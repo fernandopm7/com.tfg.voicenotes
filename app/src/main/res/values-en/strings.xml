@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="wakeup">wakeup</string>
+    <string name="grabar">grabar</string>
+    <string name="buscar">buscar</string>
+    <string name="salir">salir</string>
+    <string name="menu">menu</string>
+    <string name="reproducir">reproducir</string>
+    <string name="filtrar">filtrar</string>
+    <string name="agenda_personal">agenda personal</string>
+    <string name="give_a_name_to_the_voice_note">give a name to the voice note</string>
+    <string name="personal_tags">personal tags</string>
+    <string name="now_you_are_in_search_screen">now you are in search screen</string>
+    <string name="say_something_now">say something now</string>
+    <string name="exit">salir</string>
+    <string name="now_you_are_in_record_screen">now you are in record screen</string>
+    <string name="you_are_already_in_record_screen">you are already in record screen</string>
+    <string name="one">one</string>
+    <string name="two">two</string>
+    <string name="voice_note_not_found">voice note not found</string>
+    <string name="filtered_finished">filtered finished</string>
+    <string name="results_found">results found</string>
+    <string name="the_first_result_is">the first result is </string>
+    <string name="the_second_result_is">. the second result is </string>
+    <string name="the_third_result_is">. the third result is </string>
+    <string name="no_reults_were_found">no results were found</string>
+    <string name="nombre">name</string>
+    <string name="fecha">date</string>
+    <string name="duracion">duration</string>
+    <string name="recording_will_begin_now">recording will begin now</string>
+    <string name="select_a_tag">select a tag</string>
+    <string name="create_new_tag">create new tag</string>
+    <string name="settings">settings</string>
+    <string name="language">Language&#160;</string>
+    <string name="ingles">en</string>
+    <string name="espanhol">es</string>
+    <string name="textehere">insert text here..</string>
+    <string name="give_a_tag_to_the_voice_note">give a tag to the voice note</string>
+    <string name="model">Model</string>
+    <string name="info">Info</string>
+    <string name="creditos">Credits</string>
+    <string name="espanhol_local">spanish</string>
+    <string name="ingles_local">english</string>
+    <string name="demo">Demo</string>
+    <string name="demoDescription">demo video</string>
+    <string name="copyright">copyright</string>
+    <string name="usage">about the App</string>
+    <string name="recorder">Recorder</string>
+</resources>

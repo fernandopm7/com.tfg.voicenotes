@@ -1,0 +1,9 @@
+<resources>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:navigationBarColor">@color/navigationBarColor</item>
+        <item name="android:windowBackground">@drawable/wallpaper1</item>
+    </style>
+</resources>

@@ -1,0 +1,359 @@
+@startuml
+
+title __APP's Class Diagram__\n
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      package com.voicenotes.view.utils.indexes {
+        class AudioIndexer {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.utils.centalmap {
+      class AudioInfo {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.utils.centalmap {
+      class AudioMap {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.utils.centalmap {
+      class AudioMapLoader {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.library {
+      package com.voicenotes.view.library.ui {
+        class AudioPlayer {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      package com.voicenotes.view.utils.indexes {
+        class AudioSearcher {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.library {
+      package com.voicenotes.view.library.helpers {
+        class AudioShareHelper {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      class AudioTagsHelper {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.library {
+      class BibliotecaActivity {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    class BuildConfig {
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.library {
+      package com.voicenotes.view.library.adapter {
+        class CustomAdapter {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.library {
+      package com.voicenotes.view.library.adapter {
+        class CustomAdapterElement {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.settings {
+      package com.voicenotes.view.settings.utils {
+        class DefaultSettingsXmlParser {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.utils.fileprovider {
+      class GenericFileProvider {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.initialization {
+      class InitProgressBarActivity {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      package com.voicenotes.view.utils.indexes {
+        class LuceneConstants {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.dataaccess {
+      class ObjectsManager {
+      }
+    }
+  }
+  
+
+  package android.support.constraint {
+    class R {
+    }
+  }
+  
+
+  package android.support.mediacompat {
+    class R {
+    }
+  }
+  
+
+  package android.support.coreui {
+    class R {
+    }
+  }
+  
+
+  package android.support.v7.appcompat {
+    class R {
+    }
+  }
+  
+
+  package com.github.hiteshsondhi88.libffmpeg {
+    class R {
+    }
+  }
+  
+
+  package android.support.fragment {
+    class R {
+    }
+  }
+  
+
+  package edu.cmu.pocketsphinx {
+    class R {
+    }
+  }
+  
+
+  package android.support.graphics.drawable {
+    package android.support.graphics.drawable.animated {
+      class R {
+      }
+    }
+  }
+  
+
+  package android.support.transition {
+    class R {
+    }
+  }
+  
+
+  package android.support.design {
+    class R {
+    }
+  }
+  
+
+  package android.support.v7.recyclerview {
+    class R {
+    }
+  }
+  
+
+  package android.arch.lifecycle {
+    class R {
+    }
+  }
+  
+
+  package android.support.graphics.drawable {
+    class R {
+    }
+  }
+  
+
+  package android.support.coreutils {
+    class R {
+    }
+  }
+  
+
+  package edu.cmu.pocketsphinx {
+    package edu.cmu.pocketsphinx.models {
+      class R {
+      }
+    }
+  }
+  
+
+  package android.support.v4 {
+    class R {
+    }
+  }
+  
+
+  package com.voicenotes {
+    class R {
+    }
+  }
+  
+
+  package android.support.compat {
+    class R {
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.record {
+      class RecordActivity {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.settings {
+      class SettingsActivity {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.initialization {
+      class SplashActivity {
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      package com.voicenotes.view.utils.recordingqueue {
+        class ThreadQueue {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.view.utils {
+      package com.voicenotes.view.utils.recordingqueue {
+        class Transcriber {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.dataaccess {
+      package com.voicenotes.dataaccess.daos {
+        interface VoiceNoteDao {
+        }
+      }
+    }
+  }
+  
+
+  package com.voicenotes {
+    package com.voicenotes.dataaccess {
+      package com.voicenotes.dataaccess.daos {
+        class VoiceNoteDaoImpl {
+        }
+      }
+    }
+  }
+  
+
+  AudioInfo -up-|> Serializable
+  AudioPlayer o-- PlayThread : playThread
+  BibliotecaActivity -up-|> OnNavigationItemSelectedListener
+  BibliotecaActivity -up-|> RecognitionListener
+  BibliotecaActivity -up-|> AppCompatActivity
+  BibliotecaActivity o-- SetupTask : currentSetup
+  BibliotecaActivity o-- AudioSearcher : audioSearcher
+  BibliotecaActivity o-- BibliotecaActivity : bib
+  CustomAdapter -up-|> BaseAdapter
+  CustomAdapter o-- BibliotecaActivity : bib
+  GenericFileProvider -up-|> FileProvider
+  InitProgressBarActivity -up-|> AppCompatActivity
+  InitProgressBarActivity o-- InitProgressBarActivity : thisClass
+  RecordActivity -up-|> AppCompatActivity
+  RecordActivity o-- SpeechRecognizerThread : srt
+  SettingsActivity -up-|> OnItemSelectedListener
+  SettingsActivity -up-|> AppCompatActivity
+  SplashActivity -up-|> AppCompatActivity
+  VoiceNoteDaoImpl -up-|> VoiceNoteDao
+
+
+right footer
+
+
+PlantUML diagram generated by SketchIt! (https://bitbucket.org/pmesmeur/sketch.it)
+For more information about this tool, please contact philippe.mesmeur@gmail.com
+endfooter
+
+@enduml

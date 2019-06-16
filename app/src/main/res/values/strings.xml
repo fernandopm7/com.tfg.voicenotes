@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+
+    <string name="kws_caption">To start demonstration say \"oh mighty computer\".</string>
+    <string name="menu_caption">Say \"digits\", \"forecast\" or \"phones\" to choose the grammar, language model or phonetic decoder example.</string>
+    <string name="digits_caption">To try recognition of digits: say something like \"one two three four five\".</string>
+    <string name="forecast_caption">To try recognition of a weather forecast like \"sunny spells on Wednesday\".</string>
+    <string name="phone_caption">To try phonetic recognition say anything.</string>
+    <string name="title_activity_pocket_sphinx2">pocketSphinxActivity2</string>
+
+
+    <string name="app_name">VoiceNotes</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_search">Search</string>
+    <string name="drawer_open">Open</string>
+    <string name="drawer_close">Close</string>
+
+    <string name="nav_item_home">Home</string>
+    <string name="nav_item_friends">Friends</string>
+    <string name="nav_item_notifications">Messages</string>
+
+
+    <string name="title_messages">Messages</string>
+    <string name="title_friends">Friends</string>
+    <string name="title_home">Home</string>
+    <string name="title_activity_pantalla_principal">pantallaPrincipal</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">Android Studio</string>
+    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+    <string name="title_activity_nav_drawer">NavDrawerActivity</string>
+    <string name="reproducir_caption">asistente de reproducción</string>
+
+
+
+
+
+
+
+    <string name="wakeup">wakeup</string>
+    <string name="grabar">grabar</string>
+    <string name="buscar">buscar</string>
+    <string name="salir">salir</string>
+    <string name="menu">menu</string>
+    <string name="reproducir">reproducir</string>
+    <string name="filtrar">filtrar</string>
+    <string name="agenda_personal">agenda personal</string>
+    <string name="give_a_name_to_the_voice_note">ahora da un nombre a la nota de voz</string>
+    <string name="personal_tags">Tags personales</string>
+    <string name="now_you_are_in_search_screen">ahora estas en la pantalla buscar</string>
+    <string name="say_something_now">di algo ahora</string>
+    <string name="exit">salir</string>
+    <string name="now_you_are_in_record_screen">ahora estas en la pantalla de grabación</string>
+    <string name="you_are_already_in_record_screen">ya estas en la pantalla de grabación</string>
+    <string name="one">uno</string>
+    <string name="two">dos</string>
+    <string name="voice_note_not_found">nota de voz no encontrada</string>
+    <string name="filtered_finished">filtrado finalizado</string>
+    <string name="results_found">resultados encontrados</string>
+    <string name="the_first_result_is">el primer resultado es </string>
+    <string name="the_second_result_is">. el segundo resultado es </string>
+    <string name="the_third_result_is">. el tercer resultado es </string>
+    <string name="no_reults_were_found">ningún resultado encontrado</string>
+    <string name="nombre">nombre</string>
+    <string name="fecha">fecha</string>
+    <string name="duracion">duración</string>
+    <string name="recording_will_begin_now">la grabación comenzará ahora</string>
+    <string name="select_a_tag">selecciona un tag</string>
+    <string name="create_new_tag">crear un nuevo tag</string>
+    <string name="settings">Ajustes</string>
+    <string name="language">Idioma&#160;</string>
+    <string name="ingles">en</string>
+    <string name="espanhol">es</string>
+    <string name="textehere">introduzca texto aquí..</string>
+    <string name="give_a_tag_to_the_voice_note">ahora da una etiqueta a la nota de voz</string>
+    <string name="model">Modelo</string>
+    <string name="info">Info</string>
+    <string name="creditos">Créditos</string>
+    <string name="espanhol_local">español</string>
+    <string name="ingles_local">inglés</string>
+    <string name="demo">Demo</string>
+    <string name="demoDescription">vídeo de demostración</string>
+    <string name="copyright">derechos de autor</string>
+    <string name="usage">acerca de la aplicación</string>
+    <string name="recorder">Grabadora</string>
+
+
+
+
+
+
+
+</resources>
