@@ -198,10 +198,9 @@ public static  void setBib (BibliotecaActivity bib){
         System.out.println("***************************************");
         System.out.println("path constains:  " + path);
         System.out.println("***************************************");
-        System.out.println("***************************************");
+        System.out.println("*****************************************");
         if (audioList.contains(path)) {
-            System.out.println("ENTROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
-            System.out.println("ENTROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+//abbb
             System.out.println("ENTROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
 
             LayoutInflater layoutInflater = LayoutInflater.from(RecordActivity.this);
@@ -214,6 +213,7 @@ public static  void setBib (BibliotecaActivity bib){
             //builder.setTitle("overwrite file?");
             // builder.setMessage("overwrite file?");
 
+            //hola<z
 
             builder.setPositiveButton("SI", new DialogInterface.OnClickListener() {
 
