@@ -2,6 +2,7 @@ package com.voicenotes.view.library;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -20,12 +21,19 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.PopupMenu;
@@ -36,7 +44,6 @@ import android.widget.Toast;
 import com.voicenotes.R;
 import com.voicenotes.services.VoiceNotesService;
 import com.voicenotes.utils.centalmap.AudioInfo;
-import com.voicenotes.view.library.adapter.CustomAdapter;
 import com.voicenotes.view.library.adapter.CustomAdapterElement;
 import com.voicenotes.view.library.ui.AudioPlayer;
 import com.voicenotes.view.record.RecordActivity;
@@ -53,6 +60,7 @@ import org.apache.lucene.search.TopDocs;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -133,6 +141,8 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     public SpeechRecognizer recognizer;
     private HashMap<String, Integer> captions;
 
+    private CustomAdapter mAdapter;
+
     private boolean searching = false;
     private boolean reproducir = false;
     public boolean asistenteGrabacionActivado = false;
@@ -191,27 +201,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         currentRec=rec;
     }
 
-    private void getFilteredList(){
-        Collections.sort(elementosBiblioteca, new Comparator<CustomAdapterElement>() {
-            @Override
-            public int compare(CustomAdapterElement e1, CustomAdapterElement e2) {
-                if (currentFilter.contentEquals("nombre")) {
-                    if (e1.getName() == null || e2.getName() == null)
-                        return 0;
-                    return e1.getName().compareTo(e2.getName());
-                }else if (currentFilter.contentEquals("fecha")){
-                    if (e1.getDate() == null || e2.getDate() == null)
-                        return 0;
-                    return e1.getDate().compareTo(e2.getDate());
-                }else{ //duración
-                    if (e1.getDuration() == null || e2.getDuration() == null)
-                        return 0;
-                    return e1.getDuration().compareTo(e2.getDuration());
-                }
-            }
-        });
-    }
-
     @Override
     public void onBackPressed() {
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -262,12 +251,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         return true;
     }
 
-    public  void addAllAsCAEList(String[] elems){
+    public  ArrayList<CustomAdapterElement> getProductionElementsFilteredByActiveTag(String[] elems){
+        ArrayList<CustomAdapterElement> productionElements = new ArrayList<CustomAdapterElement>();
         if (activeTag.contentEquals("Home")){
             //todos..
             for (String elem: elems) {
                 if (mapa.get(elem) != null) {//AudioMap.getAudioInfo(elem
-                    elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
+                    productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
                 }
             }
         }else if (activeTag.contentEquals("Reminders")){
@@ -275,18 +265,19 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             //todo..provicionalmente mostramos todo..
             for (String elem: elems) {
                 if (mapa.get(elem) != null) {
-                    elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(),mapa.get(elem).getDuration()));
+                    productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(),mapa.get(elem).getDuration()));
                 }
             }
         }else{
             for (String elem: elems){
                 if (mapa.get(elem) != null) {
                     if (mapa.get(elem).getTag().contentEquals(activeTag)) { //solo añadimos elemenstos del mapa que son del mismo tag que el activo
-                        elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
+                        productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
                     }
                 }
             }
         }
+        return productionElements;
     }
 
     private void addItemsRunTime(NavigationView navigationView) {
@@ -765,8 +756,9 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                                     currentFilter=getString(R.string.duracion);
                                     break;
                             }
-                            getFilteredList();//ordena elementosBiblioteca..
-                            loadListElementsFromMap(null);
+                            mAdapter.sortDisplayedElements();
+                            //getFilteredList();//ordena elementosBiblioteca..
+                            //loadListElementsFromMap(elementosBiblioteca);
 
                             return false;
                         }
@@ -791,7 +783,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 menuFromTopToolbar.setVisibility(View.VISIBLE);
                 //estos 3 proximas lineas son para meter en la lista los elementos del mapa..antes teniamos los de la busqueda.
                 elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys());// addAllAsCAEList(AudioMap.getkeys());
+                addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
                 loadListElementsFromMap(null);
             }
         });
@@ -819,7 +811,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             public boolean onClose() {
 
                 elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys());// addAllAsCAEList(AudioMap.getkeys());
+                addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
                 loadListElementsFromMap(null);
                 searchView.setVisibility(View.INVISIBLE);
                 searchButton.setVisibility(View.VISIBLE);
@@ -832,37 +824,9 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             @Override
             public boolean onQueryTextSubmit(String s) {
                 String query = searchView.getQuery().toString();
-                if (query==null ||query==""){
-                    loadListElementsFromMap(null);
-                }else {
-                    try {
-                        try {
-                            audioSearcher = new AudioSearcher (getApplicationContext());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        //todo if searcher ==null es que no hay elementos en el indice
-                        if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
-                            String[] bestDocs = new String[search.scoreDocs.length];
-                            int i = 0;
-                            for (ScoreDoc doc : search.scoreDocs) {
-                                bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
-                                i++;
-                            }
-                            elementosBiblioteca.clear();
-                            addAllAsCAEList(bestDocs);
 
-                        }else{ //no hay nada en el indice
-                            elementosBiblioteca.clear();
-                        }
-                        loadListElementsFromMap(null);
+                    mAdapter.getFilter().filter(query); //@TODO comprobar funcionamiento de esot..viene a sustituir el load.. que instancia el adapter otra vez..
 
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    }
-                }
                 return false;
             }
             @Override
@@ -915,11 +879,17 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
 
         audioView = findViewById(R.id.customList);
         audioView.setDivider(null);
+
+        mAdapter = new CustomAdapter(this, elementosBiblioteca); //primera inicialización del adapter..
         loadListElementsFromMap(null);
     }
 
-    private void loadListElementsFromMap(String[] elems){
-        audioView.setAdapter(new CustomAdapter(this, this));
+    private void loadListElementsFromMap(ArrayList<CustomAdapterElement> elems){
+        if (elems == null) {
+            audioView.setAdapter(new CustomAdapter(this, elementosBiblioteca));
+        }else {
+            audioView.setAdapter(new CustomAdapter(this, elems));
+        }
     }
 
     OnClickListener buttonQuitarSeleccionesListener = new OnClickListener() {
@@ -993,6 +963,231 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             tts.setLanguage(new Locale("en"));
         }else{
             tts.setLanguage(new Locale("spa", "ESP"));
+        }
+    }
+
+    public class CustomAdapter extends BaseAdapter implements Filterable {
+        private LayoutInflater inflater = null;
+        Context contexto;
+        private Integer checkCount;
+        List<Boolean> audioChecked ;
+        boolean checksVisibles=false;
+        private int checkedItemWhileLongClick =0;
+
+        private ArrayList<CustomAdapterElement> originalElements;
+        private ArrayList<CustomAdapterElement> displayedElements;
+
+        public CustomAdapter(Context contexto, ArrayList<CustomAdapterElement> productionElements){
+            this.contexto=contexto;
+            originalElements = productionElements;
+            displayedElements = productionElements;
+            checkCount=1;
+            audioChecked = new ArrayList<Boolean>();
+            inflater = (LayoutInflater) contexto.getSystemService(contexto.LAYOUT_INFLATER_SERVICE);
+        }
+
+        public void changeChechBoxesVisibility(){
+            this.checksVisibles=(!checksVisibles);
+            setVisible();
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getCount() {
+            return displayedElements.size();
+        }
+
+        @Override
+        public Object getItem(int i) {
+            return i;
+        }
+
+        @Override
+        public long getItemId(int i) {
+            return i;
+        }
+
+        private String parseToDuracion(Date date){
+            SimpleDateFormat formato = new SimpleDateFormat("mm:ss");
+            String duration =formato.format(date);
+            return  duration;
+        }
+        private String parseToFecha(Date date){
+            return new SimpleDateFormat("dd-MM-yyyy").format(date);
+        }
+
+        @Override
+        public View getView(final int i, View view, ViewGroup viewGroup) {
+
+            final View vista = inflater.inflate(R.layout.elemento_lista, null);
+            final TextView audioName = vista.findViewById(R.id.audioName);
+            final TextView fecha = vista.findViewById(R.id.fecha);
+            final TextView duracion = vista.findViewById(R.id.duracion);
+            audioName.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    checkedItemWhileLongClick = i;
+                    changeChechBoxesVisibility();
+                    elementosBiblioteca.get(i).setChecked(true);
+                    return false;
+                }
+            });
+            final CheckBox boxElminar = vista.findViewById(R.id.checkBoxEliminar);
+            if (i== checkedItemWhileLongClick){
+                boxElminar.setChecked(true);
+            }
+            if (checksVisibles) {
+                boxElminar.setVisibility(View.VISIBLE);
+                boxElminar.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                        if (isChecked) {
+                            checkCount++;
+                            bib.elementosBiblioteca.get(i).setChecked(true);
+                            bib.contadorSelecciones.setText(checkCount.toString());
+                            bib.setVisible();
+                            bib.elementosBiblioteca.get(i).setChecked(true);
+                        } else {
+                            checkCount--;
+                            bib.contadorSelecciones.setText(checkCount.toString());
+                            bib.elementosBiblioteca.get(i).setChecked(false);
+                            if (checkCount == 0) {
+                                checksVisibles=false;
+                                checkCount=1;
+                                bib.contadorSelecciones.setText("1");
+                                bib.setInvisible();
+                                notifyDataSetChanged();
+                            }
+                        }
+                    }
+                });
+            }else{
+                bib.setInvisible();
+                boxElminar.setVisibility(View.INVISIBLE);
+            }
+            if (bib.elementosBiblioteca.size()>0) {
+                final AudioInfo audioInfo = mapa.get(displayedElements.get(i).getName()); //bib.elementosBiblioteca.get(i).getName()
+                if (audioInfo == null) {
+                    //no mostramos ese elemento, porque no existe en el mapa..
+                    bib.elementosBiblioteca.remove(i);
+                    this.notifyDataSetChanged();
+                }else {
+                    final String name = audioInfo.getName().replaceFirst(".wav","");
+                    fecha.setText(contexto.getString(R.string.fecha) +": "+parseToFecha(audioInfo.getFechaCreacion()));
+                    duracion.setText(contexto.getString(R.string.duracion) +": "+parseToDuracion(audioInfo.getDuration()));
+                    audioName.setText(name);
+                    audioName.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            //AudioPlayer dialog here.
+                            final Dialog dialog = new Dialog(bib);
+                            File audioFile = bib.voiceNotesService.getAudioFile(contexto,audioInfo.getName());
+                            final AudioPlayer player = new AudioPlayer(bib, audioInfo.getName(),audioFile,dialog);
+                            bib.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() { //este dialog si lo mostramos porque va sin asistente por voz..es decir, si hay que msotrar ui ..
+                                    dialog.show();
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            return vista;
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                protected void publishResults(CharSequence constraint,FilterResults results) {
+
+                    displayedElements = (ArrayList<CustomAdapterElement>) results.values; // has the filtered values
+                    notifyDataSetChanged();  // notifies the data with new filtered values
+                }
+
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults results = new FilterResults();        // Holds the results of a filtering operation in values
+                    ArrayList<CustomAdapterElement> FilteredArrList = new ArrayList<CustomAdapterElement>();
+
+                    if (originalElements == null) {
+                        originalElements = new ArrayList<CustomAdapterElement>(displayedElements); // saves the original data in mOriginalValues
+                    }
+
+                    /********
+                     *
+                     *  If constraint(CharSequence that is received) is null returns the mOriginalValues(Original) values
+                     *  else does the Filtering and returns FilteredArrList(Filtered)
+                     *
+                     ********/
+                    if (constraint == null || constraint.length() == 0) {
+
+                        // set the Original result to return
+                        results.count = originalElements.size();
+                        results.values = originalElements;
+                    } else {
+                        constraint = constraint.toString().toLowerCase();
+                        String query = constraint.toString();
+                        try {
+                            try {
+                                audioSearcher = new AudioSearcher (getApplicationContext());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            //todo if searcher ==null es que no hay elementos en el indice
+                            if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
+                                String[] bestDocs = new String[search.scoreDocs.length];
+                                int i = 0;
+                                for (ScoreDoc doc : search.scoreDocs) {
+                                    bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
+                                    i++;
+                                }
+                                displayedElements = getProductionElementsFilteredByActiveTag(bestDocs);
+
+                            }else{ //no hay nada en el indice
+                                displayedElements.clear();
+                            }
+                            loadListElementsFromMap(null);
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                        }
+
+                        // set the Filtered result to return
+                        results.count = FilteredArrList.size();
+                        results.values = FilteredArrList;
+                    }
+                    return results;
+                }
+            };
+            return filter;
+        }
+
+        public void sortDisplayedElements(){
+            Collections.sort(displayedElements, new Comparator<CustomAdapterElement>() {
+                @Override
+                public int compare(CustomAdapterElement e1, CustomAdapterElement e2) {
+                    if (currentFilter.contentEquals("nombre")) {
+                        if (e1.getName() == null || e2.getName() == null)
+                            return 0;
+                        return e1.getName().compareTo(e2.getName());
+                    }else if (currentFilter.contentEquals("fecha")){
+                        if (e1.getDate() == null || e2.getDate() == null)
+                            return 0;
+                        return e1.getDate().compareTo(e2.getDate());
+                    }else{ //duración
+                        if (e1.getDuration() == null || e2.getDuration() == null)
+                            return 0;
+                        return e1.getDuration().compareTo(e2.getDuration());
+                    }
+                }
+            });
+            notifyDataSetChanged();
         }
     }
 }
