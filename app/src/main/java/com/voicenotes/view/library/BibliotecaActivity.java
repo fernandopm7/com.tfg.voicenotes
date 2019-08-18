@@ -245,13 +245,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             activeTag= AudioTagsHelper.getPersonalTags(getApplicationContext()).get(id-10);
             appName.setText( activeTag);
         }
-        updateListView();
+        mAdapter.getFilter().filter(activeTag); //    sustituimos  updateListView();
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
 
-    public  ArrayList<CustomAdapterElement> getProductionElementsFilteredByActiveTag(String[] elems){
+    public  ArrayList<CustomAdapterElement> getProductionElementsFilteredByActiveTag(String[] elems){ //@TODO optimizar esto..no acceder varias veces al mapa..
         ArrayList<CustomAdapterElement> productionElements = new ArrayList<CustomAdapterElement>();
         if (activeTag.contentEquals("Home")){
             //todos..
@@ -262,7 +262,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             }
         }else if (activeTag.contentEquals("Reminders")){
             //solo con recordatorio
-            //todo..provicionalmente mostramos todo..
+            //@todo..provicionalmente mostramos todo..cambiar cuando se añada funcionalidad de recordatorios
             for (String elem: elems) {
                 if (mapa.get(elem) != null) {
                     productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(),mapa.get(elem).getDuration()));
@@ -298,12 +298,12 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         }
     }
 
+    /**Esta función recupera de BD todos las notas de voz y luego filtra o muestra según el tag activo en ese momento*/
     public void updateListView(){
-        elementosBiblioteca.clear();
+        //elementosBiblioteca.clear();
         Map<String,AudioInfo> mapaUpdated = voiceNotesService.getVoiceNotesMap(getApplicationContext());
         mapa = mapaUpdated;
-        addAllAsCAEList(getKeys()); //Audiomap.getKeys
-        loadListElementsFromMap(null);
+        loadListElementsFromMap(getProductionElementsFilteredByActiveTag(getKeys()));
     }
 
     @Override
@@ -453,10 +453,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 Integer pos =  text.equals(getString(R.string.one)) ? 0 : (text.equals(getString(R.string.two)) ? 1 :2);
                 recognizer.stop();
                 String speech = "";
-                if (elementosBiblioteca.size() > pos){
+                if (mAdapter.getCount() > pos){
                     final Dialog dialog = new Dialog(bib);
-                    File  audioFile = voiceNotesService.getAudioFile(getApplicationContext(),elementosBiblioteca.get(pos).getName());
-                    final AudioPlayer player = new AudioPlayer(bib, elementosBiblioteca.get(pos).getName(),audioFile,dialog);
+                    File  audioFile = voiceNotesService.getAudioFile(getApplicationContext(),((CustomAdapterElement)mAdapter.getItem(pos)).getName());
+                    final AudioPlayer player = new AudioPlayer(bib, ((CustomAdapterElement)mAdapter.getItem(pos)).getName(),audioFile,dialog);
                     player.play();
                 }else{
                     speech = getString(R.string.voice_note_not_found);
@@ -506,12 +506,12 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     if (alltags.contains(tagName)) {
                         activeTag = tagName;
                         appName.setText(activeTag);
-                        updateListView();
+                        mAdapter.getFilter().filter(activeTag);//updateListView();
                         ConvertTextToSpeech(getString(R.string.filtered_finished));
                         while (tts.isSpeaking()) {
 
                         }
-                        ConvertTextToSpeech(elementosBiblioteca.size() + getString(R.string.results_found));
+                        ConvertTextToSpeech(mAdapter.getCount() + getString(R.string.results_found));
                         while (tts.isSpeaking()) {
 
                         }
@@ -543,12 +543,12 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             //si el asistente de voz ha acabado de buscar->el aistente mediante tts reproducirá el nombre de las 3 primeras notas de voz.
            String speech = "";
             if (!elementosBiblioteca.isEmpty()){
-                if (elementosBiblioteca.get(0) != null){
-                    speech = getString(R.string.the_first_result_is) + withoutDotWav(elementosBiblioteca.get(0).getName());
-                    if (elementosBiblioteca.size() >1) {
-                        speech = speech + getString(R.string.the_second_result_is)+ withoutDotWav(elementosBiblioteca.get(1).getName());
-                        if (elementosBiblioteca.size() >2){
-                            speech = speech + getString(R.string.the_third_result_is) + withoutDotWav(elementosBiblioteca.get(2).getName());
+                if (mAdapter.getItem(0) != null){
+                    speech = getString(R.string.the_first_result_is) + withoutDotWav(((CustomAdapterElement)mAdapter.getItem(0)).getName());
+                    if (mAdapter.getCount() >1) {
+                        speech = speech + getString(R.string.the_second_result_is)+ withoutDotWav(((CustomAdapterElement)mAdapter.getItem(1)).getName());
+                        if (mAdapter.getCount() >2){
+                            speech = speech + getString(R.string.the_third_result_is) + withoutDotWav(((CustomAdapterElement)mAdapter.getItem(2)).getName());
                         }
                     }
                 }
@@ -701,10 +701,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 currentSetup.execute();
             }
         }
-
         //inicializamos los elementos de la lista elementosBib..
-        elementosBiblioteca = new ArrayList<CustomAdapterElement>();
-        addAllAsCAEList(getKeys());
+        // elementosBiblioteca = new ArrayList<CustomAdapterElement>();
+        //addAllAsCAEList(getKeys());
+        updateListView();
 
         //////////////////////////////nav drawer here
         final DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -782,9 +782,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 actionButton.setVisibility(View.VISIBLE);
                 menuFromTopToolbar.setVisibility(View.VISIBLE);
                 //estos 3 proximas lineas son para meter en la lista los elementos del mapa..antes teniamos los de la busqueda.
-                elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
-                loadListElementsFromMap(null);
+                updateListView();
+                //elementosBiblioteca.clear();
+                //addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
+                //loadListElementsFromMap(null);
             }
         });
         appName = toolbarTop.findViewById(R.id.toolbarText);
@@ -809,10 +810,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         searchView.setOnCloseListener(new SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
-
-                elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
-                loadListElementsFromMap(null);
+                updateListView();
+                //elementosBiblioteca.clear();
+                //addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
+               // loadListElementsFromMap(null);
                 searchView.setVisibility(View.INVISIBLE);
                 searchButton.setVisibility(View.VISIBLE);
                 appName.setVisibility(View.VISIBLE);
@@ -824,45 +825,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             @Override
             public boolean onQueryTextSubmit(String s) {
                 String query = searchView.getQuery().toString();
-
-                    mAdapter.getFilter().filter(query); //@TODO comprobar funcionamiento de esot..viene a sustituir el load.. que instancia el adapter otra vez..
-
+                mAdapter.getFilter().filter(query); //@TODO comprobar funcionamiento de esot..viene a sustituir el load.. que instancia el adapter otra vez..
                 return false;
             }
             @Override
             public boolean onQueryTextChange(String s) {
                 String query = searchView.getQuery().toString();
-                if (query==null ||query==""){
-                    loadListElementsFromMap(null);
-                }else {
-                    try {
-                        try {
-                            audioSearcher = new AudioSearcher(getApplicationContext());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
-                            String[] bestDocs = new String[search.scoreDocs.length];
-                            int i = 0;
-                            for (ScoreDoc doc : search.scoreDocs) {
-                                bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
-                                i++;
-                            }
-                            elementosBiblioteca.clear();
-
-                            addAllAsCAEList(bestDocs);
-
-                        }else{ //no hay nada en el indice
-                            elementosBiblioteca.clear();
-                        }
-                        loadListElementsFromMap(null);
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    }
-                }
+                mAdapter.getFilter().filter(query);
                 return false;
             }
         });
@@ -880,13 +849,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         audioView = findViewById(R.id.customList);
         audioView.setDivider(null);
 
-        mAdapter = new CustomAdapter(this, elementosBiblioteca); //primera inicialización del adapter..
+        //mAdapter = new CustomAdapter(this, elementosBiblioteca); //primera inicialización del adapter..
         loadListElementsFromMap(null);
     }
 
     private void loadListElementsFromMap(ArrayList<CustomAdapterElement> elems){
         if (elems == null) {
-            audioView.setAdapter(new CustomAdapter(this, elementosBiblioteca));
+            audioView.setAdapter(new CustomAdapter(this, new ArrayList<CustomAdapterElement>()));
         }else {
             audioView.setAdapter(new CustomAdapter(this, elems));
         }
@@ -895,19 +864,20 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     OnClickListener buttonQuitarSeleccionesListener = new OnClickListener() {
         @Override
         public void onClick(View view) {
-            for (int i =0;i <elementosBiblioteca.size();i++){
-                elementosBiblioteca.get(i).setChecked(false);
+            for (int i =0;i <mAdapter.getCount();i++){
+                ((CustomAdapterElement)mAdapter.getItem(i)).setChecked(false);
             }
             contadorSelecciones.setText("1");
             setInvisible();
-            loadListElementsFromMap(null);
+            //loadListElementsFromMap(null);
+            updateListView();
         }
     };
 
     OnClickListener ButtonDeleteFromListListener = new OnClickListener() {
         @Override
         public void onClick(View view) {
-            for (CustomAdapterElement elem : ((ArrayList<CustomAdapterElement>)elementosBiblioteca.clone()) ) {
+            for (CustomAdapterElement elem : ((ArrayList<CustomAdapterElement>)mAdapter.displayedElements.clone()) ) {
                 if (elem.getChecked()) {
                     ArrayList<String> aa = new ArrayList<String>(){
                         @Override
@@ -923,12 +893,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     voiceNotesService.deleteVoiceNote(getApplicationContext(),elem.getName());
                     mapa.remove(elem.getName());
                     //eliminamos de arrList y audioChecked (este ultimo simplemente al instanciar adapr otra vez es suficiente..)
-                    elementosBiblioteca.remove(elem);
+                    //elementosBiblioteca.remove(elem);
                 }
             }
             setInvisible();
             // actualizamos la vista incializando el adapter otra vez.
-            loadListElementsFromMap(null);
+            //loadListElementsFromMap(null);
+            updateListView();
         }
     };
 /* //TODO file open para importar..
@@ -954,7 +925,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         actionButton.setVisibility(View.VISIBLE);
     }
 
-    private String[] getKeys(){
+    private String[] getKeys(){ //@TODO crear una clase helper que contenga todas estas operaciones genéricas
         return mapa.keySet().toArray(new String[mapa.keySet().size()]);
     }
 
@@ -999,7 +970,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
 
         @Override
         public Object getItem(int i) {
-            return i;
+            return displayedElements.get(i);
         }
 
         @Override
@@ -1028,7 +999,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 public boolean onLongClick(View view) {
                     checkedItemWhileLongClick = i;
                     changeChechBoxesVisibility();
-                    elementosBiblioteca.get(i).setChecked(true);
+                    displayedElements.get(i).setChecked(true);
                     return false;
                 }
             });
@@ -1043,34 +1014,33 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
                         if (isChecked) {
                             checkCount++;
-                            bib.elementosBiblioteca.get(i).setChecked(true);
-                            bib.contadorSelecciones.setText(checkCount.toString());
-                            bib.setVisible();
-                            bib.elementosBiblioteca.get(i).setChecked(true);
+                            displayedElements.get(i).setChecked(true);
+                            contadorSelecciones.setText(checkCount.toString());
+                            setVisible();
                         } else {
                             checkCount--;
-                            bib.contadorSelecciones.setText(checkCount.toString());
-                            bib.elementosBiblioteca.get(i).setChecked(false);
+                            contadorSelecciones.setText(checkCount.toString());
+                            displayedElements.get(i).setChecked(false);
                             if (checkCount == 0) {
                                 checksVisibles=false;
                                 checkCount=1;
-                                bib.contadorSelecciones.setText("1");
-                                bib.setInvisible();
-                                notifyDataSetChanged();
+                                contadorSelecciones.setText("1");
+                                setInvisible();
                             }
                         }
+                        notifyDataSetChanged();
                     }
                 });
             }else{
                 bib.setInvisible();
                 boxElminar.setVisibility(View.INVISIBLE);
             }
-            if (bib.elementosBiblioteca.size()>0) {
+            if (displayedElements.size()>0) {
                 final AudioInfo audioInfo = mapa.get(displayedElements.get(i).getName()); //bib.elementosBiblioteca.get(i).getName()
                 if (audioInfo == null) {
                     //no mostramos ese elemento, porque no existe en el mapa..
-                    bib.elementosBiblioteca.remove(i);
-                    this.notifyDataSetChanged();
+                    displayedElements.remove(i);
+                    notifyDataSetChanged();
                 }else {
                     final String name = audioInfo.getName().replaceFirst(".wav","");
                     fecha.setText(contexto.getString(R.string.fecha) +": "+parseToFecha(audioInfo.getFechaCreacion()));
