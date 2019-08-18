@@ -89,7 +89,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     private List<String> showingTags = new ArrayList<String>();
     SubMenu submenu = null;
     //ArrayList<String> listaToDelete = new ArrayList<String>();
-    public ArrayList<CustomAdapterElement> elementosBiblioteca;
     FloatingActionButton actionButton;
     ListView audioView;
     NavigationView navigationView;
@@ -542,7 +541,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             recognizer.stop();
             //si el asistente de voz ha acabado de buscar->el aistente mediante tts reproducirá el nombre de las 3 primeras notas de voz.
            String speech = "";
-            if (!elementosBiblioteca.isEmpty()){
+            if (!mAdapter.displayedElements.isEmpty()){
                 if (mAdapter.getItem(0) != null){
                     speech = getString(R.string.the_first_result_is) + withoutDotWav(((CustomAdapterElement)mAdapter.getItem(0)).getName());
                     if (mAdapter.getCount() >1) {
