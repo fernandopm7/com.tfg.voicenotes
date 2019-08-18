@@ -315,7 +315,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         }
         updateListView();
         addItemsRunTime(navigationView);
-        loadListElementsFromMap(null);
+       // loadListElementsFromMap(null);
     }
 
     //request permissions on runtime code..
@@ -700,10 +700,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 currentSetup.execute();
             }
         }
-        //inicializamos los elementos de la lista elementosBib..
-        // elementosBiblioteca = new ArrayList<CustomAdapterElement>();
-        //addAllAsCAEList(getKeys());
-        updateListView();
 
         //////////////////////////////nav drawer here
         final DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -849,14 +845,22 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         audioView.setDivider(null);
 
         //mAdapter = new CustomAdapter(this, elementosBiblioteca); //primera inicialización del adapter..
-        loadListElementsFromMap(null);
+
+        //inicializamos los elementos de la lista elementosBib..
+        // elementosBiblioteca = new ArrayList<CustomAdapterElement>();
+        //addAllAsCAEList(getKeys());
+        updateListView();
+
+        //loadListElementsFromMap(null);
     }
 
     private void loadListElementsFromMap(ArrayList<CustomAdapterElement> elems){
         if (elems == null) {
-            audioView.setAdapter(new CustomAdapter(this, new ArrayList<CustomAdapterElement>()));
+            mAdapter = new CustomAdapter(this, new ArrayList<CustomAdapterElement>());
+            audioView.setAdapter(mAdapter);
         }else {
-            audioView.setAdapter(new CustomAdapter(this, elems));
+            mAdapter = new CustomAdapter(this, elems);
+            audioView.setAdapter(mAdapter);
         }
     }
 
@@ -1119,7 +1123,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                             }else{ //no hay nada en el indice
                                 displayedElements.clear();
                             }
-                            loadListElementsFromMap(null);
+
 
                         } catch (IOException e) {
                             e.printStackTrace();
