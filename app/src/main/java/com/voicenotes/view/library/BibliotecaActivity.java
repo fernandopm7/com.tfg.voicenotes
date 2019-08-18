@@ -244,7 +244,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             activeTag= AudioTagsHelper.getPersonalTags(getApplicationContext()).get(id-10);
             appName.setText( activeTag);
         }
-        mAdapter.getFilter().filter(activeTag); //    sustituimos  updateListView();
+        mAdapter.filterByTag(activeTag);
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -953,8 +953,8 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
 
         public CustomAdapter(Context contexto, ArrayList<CustomAdapterElement> productionElements){
             this.contexto=contexto;
-            originalElements = productionElements;
-            displayedElements = productionElements;
+            originalElements = new ArrayList<CustomAdapterElement>(productionElements);
+            displayedElements = new ArrayList<CustomAdapterElement>(productionElements);
             checkCount=1;
             audioChecked = new ArrayList<Boolean>();
             inflater = (LayoutInflater) contexto.getSystemService(contexto.LAYOUT_INFLATER_SERVICE);
@@ -1138,6 +1138,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     return results;
                 }
             };
+            notifyDataSetChanged();
             return filter;
         }
 
@@ -1160,6 +1161,22 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     }
                 }
             });
+            notifyDataSetChanged();
+        }
+        /** modifica la displayed list en base al tag seleccionado por el usuario*/
+        public void filterByTag(String tag){
+            if (activeTag.contentEquals("Home")){
+                displayedElements.clear();
+                displayedElements.addAll(originalElements);
+            }else {
+                for (CustomAdapterElement ele : originalElements) {
+                    displayedElements.clear();
+                    AudioInfo ai = mapa.get(ele.getName());
+                    if (ai != null && ai.getTag().contentEquals(activeTag)) {
+                        displayedElements.add(ele);
+                    }
+                }
+            }
             notifyDataSetChanged();
         }
     }
