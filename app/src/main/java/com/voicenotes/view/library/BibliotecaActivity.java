@@ -6,6 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+
+import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Color;
+
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -42,6 +46,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.voicenotes.R;
+import com.voicenotes.dataaccess.AudioInfoDB;
+import com.voicenotes.dataaccess.VoiceNotesSQLHelper;
 import com.voicenotes.services.VoiceNotesService;
 import com.voicenotes.utils.centalmap.AudioInfo;
 import com.voicenotes.view.library.adapter.CustomAdapterElement;
@@ -152,6 +158,11 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     public String tagName="";
     public boolean isRecording=false;
     //end of blind helper
+
+    private static AudioInfoDB audioInfoDB;
+    private List<AudioInfo> audioInfos;
+    private SQLiteDatabase dataBase;
+
 
     public String buscarEnAudioList(String valor){
         for (String elem: mapa.keySet()){ //AudioMap.getkeys()
@@ -651,6 +662,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         setContentView(R.layout.activity_nav_drawer);
         voiceNotesService = new VoiceNotesService();
         mapa = voiceNotesService.getVoiceNotesMap(getApplicationContext());
+        //db
+        dataBase = new VoiceNotesSQLHelper(getApplicationContext()).getWritableDatabase();
+        audioInfos = new ArrayList<>();
+
          tts = new TextToSpeech(this,  new TextToSpeech.OnInitListener() {
 
             @Override
