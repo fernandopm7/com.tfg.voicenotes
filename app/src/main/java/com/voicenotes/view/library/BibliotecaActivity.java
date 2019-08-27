@@ -2,10 +2,10 @@ package com.voicenotes.view.library;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,12 +21,19 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.PopupMenu;
@@ -37,15 +44,14 @@ import android.widget.Toast;
 import com.voicenotes.R;
 import com.voicenotes.services.VoiceNotesService;
 import com.voicenotes.utils.centalmap.AudioInfo;
+import com.voicenotes.view.library.adapter.CustomAdapterElement;
 import com.voicenotes.view.library.ui.AudioPlayer;
+import com.voicenotes.view.record.RecordActivity;
+import com.voicenotes.view.settings.SettingsActivity;
 import com.voicenotes.view.settings.utils.DefaultSettingsXmlParser;
 import com.voicenotes.view.utils.AudioTagsHelper;
-import com.voicenotes.view.record.RecordActivity;
 import com.voicenotes.view.utils.indexes.AudioSearcher;
 import com.voicenotes.view.utils.indexes.LuceneConstants;
-import com.voicenotes.view.settings.SettingsActivity;
-import com.voicenotes.view.library.adapter.CustomAdapter;
-import com.voicenotes.view.library.adapter.CustomAdapterElement;
 
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.ScoreDoc;
@@ -54,8 +60,8 @@ import org.apache.lucene.search.TopDocs;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -72,7 +78,6 @@ import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 import static android.view.View.GONE;
 import static android.widget.Toast.makeText;
-import static java.lang.Thread.sleep;
 
 
 public class BibliotecaActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, RecognitionListener {
@@ -84,7 +89,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     private List<String> showingTags = new ArrayList<String>();
     SubMenu submenu = null;
     //ArrayList<String> listaToDelete = new ArrayList<String>();
-    public ArrayList<CustomAdapterElement> elementosBiblioteca;
     FloatingActionButton actionButton;
     ListView audioView;
     NavigationView navigationView;
@@ -115,6 +119,7 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     private boolean writePermissionGranted = true;
     private boolean recordPermissionGranted = true;
     private String currentFilter = "name"; //name by default
+    public TextToSpeech tts;
 
     public static RecordActivity currentRec = null;
 
@@ -135,6 +140,8 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     public SpeechRecognizer recognizer;
     private HashMap<String, Integer> captions;
 
+    private CustomAdapter mAdapter;
+
     private boolean searching = false;
     private boolean reproducir = false;
     public boolean asistenteGrabacionActivado = false;
@@ -150,15 +157,12 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         for (String elem: mapa.keySet()){ //AudioMap.getkeys()
             if (elem.contains(valor)){
                 return mapa.get(elem).getWavPath(); //AudioMap.getAudioInfo(elem)
-
             }
         }
         return null;
-
     }
 
     public void continueRecog(){
-        //ConvertTextToSpeech("now give a name to the voice note");
         ConvertTextToSpeech(getString(R.string.give_a_name_to_the_voice_note));
         while(tts.isSpeaking()){
             //mientras el asistente hable, no hacer nada.
@@ -177,56 +181,23 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     }
 
     private void saveAudioUsingAccesibleMode(File currentRecord,String name,String tag,Date horaMinSeg){
-        System.out.println("EL NOMBRE EEE:  "+name);
         String path = name + ".wav";
         final File aux = buscarEnAudioList(path) != null ? new File(buscarEnAudioList(path)):null;
         String res="";
-
         res = path;
         if (aux!=null){
          aux.delete();
         }
         final String destName = Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_MUSIC) + "/" + res;
-        System.out.println("1111111111");
-
-        //todo mecanica de tags here..
         File filex = new File(destName);
-       // AudioInfo audioInfo = new AudioInfo(filex.getName(), null, null,true,tag,horaMinSeg,new Date());
         File currentRecording = currentRecord;
-        //File wavFile = ObjectsManager.writeFile(getApplicationContext(), "recordings", filex.getName(), currentRecording);
-        //AudioMap.setAudioInfo(getApplicationContext(), filex.getName(), audioInfo);
-        //ThreadQueue.addElement(filex.getName());
         voiceNotesService.processAudio(getApplicationContext(),currentRecording,filex.getName(),tag,new Date(),horaMinSeg,currentRec.currenteTranscriptionLanguage != null ? currentRec.currenteTranscriptionLanguage : "es-es");
         recognizer.startListening(KWS_SEARCH);
     }
 
     public static void saveCurrentRec (RecordActivity rec){
         currentRec=rec;
-    }
-
-    private void getFilteredList(){
-
-        Collections.sort(elementosBiblioteca, new Comparator<CustomAdapterElement>() {
-            @Override
-            public int compare(CustomAdapterElement e1, CustomAdapterElement e2) {
-                if (currentFilter.contentEquals("nombre")) {
-                    if (e1.getName() == null || e2.getName() == null)
-                        return 0;
-                    return e1.getName().compareTo(e2.getName());
-                }else if (currentFilter.contentEquals("fecha")){
-                    if (e1.getDate() == null || e2.getDate() == null)
-                        return 0;
-                    return e1.getDate().compareTo(e2.getDate());
-                }else{ //duración
-                    if (e1.getDuration() == null || e2.getDuration() == null)
-                        return 0;
-                    return e1.getDuration().compareTo(e2.getDuration());
-                }
-            }
-
-
-        });
     }
 
     @Override
@@ -252,12 +223,9 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -266,139 +234,88 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.
         int id = item.getItemId();
-
-
         if (id == R.id.nav_home) {
-            // Handle the camera action
             activeTag="Home";
             appName.setText( activeTag);
         } else if (id == R.id.nav_reminders) {
-            //activeTag="Reminders";
-            //appName.setText( activeTag);
             Intent intent = new Intent(getApplicationContext(), SettingsActivity.class);
-
             startActivity(intent);
-
-
-        } else { //personal tags.. todo quitar de submenu y poner en menu..
-            activeTag= AudioTagsHelper.getPersonalTags(getApplicationContext()).get(id-10); //todo verificar
-
+        } else { //personal tags..
+            activeTag= AudioTagsHelper.getPersonalTags(getApplicationContext()).get(id-10);
             appName.setText( activeTag);
-
         }
-        updateListView();
+        mAdapter.filterByTag(activeTag);
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
 
-    //////////////
-    /////////////
-
-
-
-
-    /** Called when the activity is first created. */
-    public  void addAllAsCAEList(String[] elems){
-
+    public  ArrayList<CustomAdapterElement> getProductionElementsFilteredByActiveTag(String[] elems){ //@TODO optimizar esto..no acceder varias veces al mapa..
+        ArrayList<CustomAdapterElement> productionElements = new ArrayList<CustomAdapterElement>();
         if (activeTag.contentEquals("Home")){
             //todos..
-
             for (String elem: elems) {
                 if (mapa.get(elem) != null) {//AudioMap.getAudioInfo(elem
-                    elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
+                    productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
                 }
             }
         }else if (activeTag.contentEquals("Reminders")){
             //solo con recordatorio
-            //todo..provicionalmente mostramos todo..
+            //@todo..provicionalmente mostramos todo..cambiar cuando se añada funcionalidad de recordatorios
             for (String elem: elems) {
                 if (mapa.get(elem) != null) {
-                    elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(),mapa.get(elem).getDuration()));
+                    productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(),mapa.get(elem).getDuration()));
                 }
             }
         }else{
             for (String elem: elems){
                 if (mapa.get(elem) != null) {
                     if (mapa.get(elem).getTag().contentEquals(activeTag)) { //solo añadimos elemenstos del mapa que son del mismo tag que el activo
-                        elementosBiblioteca.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
+                        productionElements.add(new CustomAdapterElement(elem, mapa.get(elem).getFechaCreacion(), mapa.get(elem).getDuration()));
                     }
                 }
             }
         }
+        return productionElements;
     }
 
     private void addItemsRunTime(NavigationView navigationView) {
         //adding items run time
-
         if (submenu != null){
-
             submenu.removeItem(9);//usaremos "9" siempre para identificar el submenu
             submenu.clear();
-
             submenu=null;
         }
-
         final Menu menu = navigationView.getMenu();
-
-        // adding a section and items into it
-        // final SubMenu subMenu = menu.addSubMenu("Personal Tags");
-        //subMenu.add("Work");
-        // subMenu.add("University");
-        // subMenu.add("Science club");
-        // subMenu.add("Others");
-
         submenu = menu.addSubMenu(0, 9, Menu.NONE, getString(R.string.personal_tags));
-
-        //comenzamos en 10..
         if (AudioTagsHelper.getPersonalTags(getApplicationContext()) != null){
             int i=10;
             for (String tag: AudioTagsHelper.getPersonalTags(getApplicationContext())){
-
                 submenu.add(0, i, Menu.NONE, tag);
                 i = i + 1;
-
             }
         }
-
-
-
-
-        // refreshing navigation drawer adapter
-        /* for (int i = 0, count = mNavigationView.getChildCount(); i < count; i++) {
-            final View child = mNavigationView.getChildAt(i);
-            if (child != null && child instanceof ListView) {
-                final ListView menuView = (ListView) child;
-                final HeaderViewListAdapter adapter = (HeaderViewListAdapter) menuView.getAdapter();
-                final BaseAdapter wrapped = (BaseAdapter) adapter.getWrappedAdapter();
-                wrapped.notifyDataSetChanged();
-            }
-        }*/
     }
 
+    /**Esta función recupera de BD todos las notas de voz y luego filtra o muestra según el tag activo en ese momento*/
     public void updateListView(){
-        elementosBiblioteca.clear();
+        //elementosBiblioteca.clear();
         Map<String,AudioInfo> mapaUpdated = voiceNotesService.getVoiceNotesMap(getApplicationContext());
         mapa = mapaUpdated;
-        addAllAsCAEList(getKeys()); //Audiomap.getKeys
-        loadListElementsFromMap(null);
+        loadListElementsFromMap(getProductionElementsFilteredByActiveTag(getKeys()));
     }
 
     @Override
     public void onResume() {
         updateLanguage();
-
         super.onResume();
         if (currentRec!=null) {
             currentRec.finish();
             currentRec = null;
         }
         updateListView();
-
         addItemsRunTime(navigationView);
-
-        loadListElementsFromMap(null);
-
+       // loadListElementsFromMap(null);
     }
 
     //request permissions on runtime code..
@@ -407,7 +324,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         if (requestCode == REQUEST_RECORD_PERMISSION) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 recordPermissionGranted = true;
-                //blind helper here
                 if (currentSetup != null) {
                     currentSetup.cancel(true);
                     currentSetup = null;
@@ -417,8 +333,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     currentSetup = new SetupTask(this);
                     currentSetup.execute();
                 }
-                //end blind helper
-
             } else {
                 recordPermissionGranted = false;
             }
@@ -429,31 +343,22 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             } else {
                 writePermissionGranted = false;
             }
-
         }
     }
 
-    //blind helper here
-
     private static class SetupTask extends AsyncTask<Void, Void, Exception> {
-
         WeakReference<BibliotecaActivity> activityReference;
 
         SetupTask(BibliotecaActivity activity) {
-
             this.activityReference = new WeakReference<>(activity);
-
         }
 
         @Override
-
         protected Exception doInBackground(Void... params) {
-
             try {
                 Assets assets = new Assets(activityReference.get());
                 File assetDir = assets.syncAssets();
                 activityReference.get().setupRecognizer(assetDir);
-
             } catch (IOException e) {
                 return e;
             }
@@ -461,24 +366,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         }
 
         @Override
-
         protected void onPostExecute(Exception result) {
-
             if (result != null) {
-
-                //  ((TextView) activityReference.get().findViewById(R.id.caption_text))
-
-                //        .setText("Failed to init recognizer " + result);
-
-
+                //TODO do/show something
             } else {
-
                 activityReference.get().switchSearch(KWS_SEARCH);
-
             }
-
         }
-
     }
 
     @Override
@@ -489,7 +383,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 switchSearch(KWS_SEARCH);
             recognizer.cancel();
             recognizer.shutdown();
-
         }
     }
 
@@ -507,45 +400,33 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 currentRec=null;
             }
             recognizer.stop();
-
             ((TextView) findViewById(R.id.result_textBib)).setText(getString(R.string.now_you_are_in_search_screen));
             searchButton.performClick();
             flag = true;
             //ConvertTextToSpeech("say something now");
             ConvertTextToSpeech(getString(R.string.say_something_now));
             while (tts.isSpeaking()){
-
+                //wait...
             }
             recognizer.startListening(ACTION_SEARCH);
-            //switchSearch(ACTION_SEARCH);
 
-        }
-        else if (text.equals(ACTION_EXIT)){
+        }else if (text.equals(ACTION_EXIT)){
             ((TextView) findViewById(R.id.result_textBib)).setText(getString(R.string.exit));
-        if (currentRec != null){ //quiere decir que esta actualmente en record..
-            currentRec.backActivity();
-            currentRec=null;
-        }else{
-            if(searchButton.getVisibility() == View.INVISIBLE){
-                //es que esta en buscar..damos a backfrombus..
-                backFromBusqueda.performClick();
+            if (currentRec != null){ //quiere decir que esta actualmente en record..
+                currentRec.backActivity();
+                currentRec=null;
+            }else{
+                if(searchButton.getVisibility() == View.INVISIBLE){
+                    //es que esta en buscar..damos a backfrombus..
+                    backFromBusqueda.performClick();
+                }
             }
-        }
-        }
-//            switchSearch(ACTION_EXIT);
-        else if (text.equals(ACTION_RECORD)) {
-
-
+        }else if (text.equals(ACTION_RECORD)) {
             asistenteGrabacionActivado=true;
             if (currentRec == null) {
                 ((TextView) findViewById(R.id.result_textBib)).setText(getString(R.string.now_you_are_in_record_screen));
-
                 recognizer.stop();
-
                 actionButton.performClick();
-
-
-
             } else {
                 ((TextView) findViewById(R.id.result_textBib)).setText(getString(R.string.you_are_already_in_record_screen));
             }
@@ -557,77 +438,41 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             filtrando=true;
             recognizer.stop();
             recognizer.startListening(ACTION_SEARCH);
-
-
         }
         else if (text.equals(ACTION_REPRODUCIR)){
             if (currentRec!=null){ //si estamos en la pantalla de grabar, volvemos a bib.
                 currentRec.backActivity();
                 currentRec=null;
             }
-            String speech = "";
             reproducir = true;
             switchSearch(ACTION_REPRODUCIR);
-        }
-        //          switchSearch(ACTION_RECORD);
-        else {
-
-
+        }else {
             ((TextView) findViewById(R.id.result_textBib)).setText(text);
-
-
-                System.out.println("flag activated: "+  text);
-                if (reproducir){//reproducir
-                   Integer pos =  text.equals(getString(R.string.one)) ? 0 : (text.equals(getString(R.string.two)) ? 1 :2);
-                    recognizer.stop();
-                    String speech = "";
-                    if (elementosBiblioteca.size() > pos){
-                     //   System.out.println("OnPlaySelectedActivityClick con audioName: " + audioInfo.getName());
-                        //AudioPlayer dialog here.
-                        final Dialog dialog = new Dialog(bib);
-                       File  audioFile = voiceNotesService.getAudioFile(getApplicationContext(),elementosBiblioteca.get(pos).getName());
-                        final AudioPlayer player = new AudioPlayer(bib, elementosBiblioteca.get(pos).getName(),audioFile,dialog);
-                        player.play();
-
-                    }else{
-                        //speech = "No records were found";
-                        speech = getString(R.string.voice_note_not_found);
+            if (reproducir){//reproducir
+                Integer pos =  text.equals(getString(R.string.one)) ? 0 : (text.equals(getString(R.string.two)) ? 1 :2);
+                recognizer.stop();
+                String speech = "";
+                if (mAdapter.getCount() > pos){
+                    final Dialog dialog = new Dialog(bib);
+                    File  audioFile = voiceNotesService.getAudioFile(getApplicationContext(),((CustomAdapterElement)mAdapter.getItem(pos)).getName());
+                    final AudioPlayer player = new AudioPlayer(bib, ((CustomAdapterElement)mAdapter.getItem(pos)).getName(),audioFile,dialog);
+                    player.play();
+                }else{
+                    speech = getString(R.string.voice_note_not_found);
                         ConvertTextToSpeech(speech);
-                    }
-
-                    reproducir = false;
-
-                    recognizer.startListening(KWS_SEARCH);
-                    while (tts.isSpeaking()){
-
-                    }
-                }else if (searching){//buscar
-                    System.out.println("entro en searching");
-                    searchView.setQuery(text, true);
                 }
-
-                //else if (asistenteGrabacionActivado){
-                  //  if (askingName){
-                   //    recordingName = text;
-                     //  recognizer.stop();
-                       // System.out.println("HE LLEGAOOOOOOOOOOOOO");
-                  //      File currentRecording = new File(currentRec.outputFile);
-                    //    Date horaMinSeg = currentRec.currentDate;
-                      //  saveAudioUsingAccesibleMode(currentRecording, recordingName,"BlindsTag",horaMinSeg);
-                        //askingName=false;
-                       // asistenteGrabacionActivado=false;
-                    //}
-                    //else if (askingTag){
-                      //  System.out.println("******************** BIB: askingTag **********************");
-                       // tagName= text;
-                        //recognizer.stop();
-                        //askingTag=false;
-                    //}
-               // }
+                reproducir = false;
+                recognizer.startListening(KWS_SEARCH);
+                while (tts.isSpeaking()){
+                    //wait..
+                }
+            }else if (searching){//buscar
+                searchView.setQuery(text, true);
+            }
             flag = false;
+        }
+    }
 
-        }
-        }
     /**
      * This callback is called when we stop the recognizer.
      */
@@ -639,13 +484,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 if (askingName) {
                     recordingName = hypothesis.getHypstr();
                     recognizer.stop();
-                    System.out.println("HE LLEGAOOOOOOOOOOOOO");
-                    System.out.println(  "RAWDATA while askingName:  "+recognizer.getDecoder().getRawdata().toString());
-                    System.out.println("RAWDATA size:  " + recognizer.getDecoder().getRawdata().length);
-                    //File currentRecording = new File(currentRec.outputFile);
-                    //Date horaMinSeg = currentRec.currentDate;
-                    //saveAudioUsingAccesibleMode(currentRecording, recordingName, "BlindsTag", horaMinSeg);
-                    //asistenteGrabacionActivado = false;
                     askingName = false;
                     askTag();
                 }else if (askingTag){
@@ -662,45 +500,34 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                     filtrando=false;
                     String tagName=hypothesis.getHypstr();
                     recognizer.stop();
-                    List<String>alltags = AudioTagsHelper.getPersonalTags(getApplicationContext());
-                    if (alltags.contains(tagName)) {
+                    List<String> alltags = AudioTagsHelper.getPersonalTags(getApplicationContext());
 
+                    if (alltags.contains(tagName)) {
                         activeTag = tagName;
                         appName.setText(activeTag);
-                        updateListView();
-                      //  ConvertTextToSpeech("filtered finished ");
+                        mAdapter.getFilter().filter(activeTag);//updateListView();
                         ConvertTextToSpeech(getString(R.string.filtered_finished));
                         while (tts.isSpeaking()) {
 
                         }
-                        //ConvertTextToSpeech(elementosBiblioteca.size() + " results found");
-                        ConvertTextToSpeech(elementosBiblioteca.size() + getString(R.string.results_found));
+                        ConvertTextToSpeech(mAdapter.getCount() + getString(R.string.results_found));
                         while (tts.isSpeaking()) {
 
                         }
-                    }else{
-                       // ConvertTextToSpeech("filtered finished ");
                         ConvertTextToSpeech(getString(R.string.filtered_finished));
                         while (tts.isSpeaking()) {
 
                         }
-                        //ConvertTextToSpeech(0 + " results found");
                         ConvertTextToSpeech(0 + getString(R.string.results_found));
                     }
                     recognizer.startListening(KWS_SEARCH);
-
-            }
-            //else if (grabando){
-              //      recognizer.getDecoder().getRawdata();
-                //}
+                }
             }
             String text = hypothesis.getHypstr();
             makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
-
-
         }
-
     }
+
     @Override
     public void onBeginningOfSpeech() {
     }
@@ -714,13 +541,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             recognizer.stop();
             //si el asistente de voz ha acabado de buscar->el aistente mediante tts reproducirá el nombre de las 3 primeras notas de voz.
            String speech = "";
-            if (!elementosBiblioteca.isEmpty()){
-                if (elementosBiblioteca.get(0) != null){
-                    speech = getString(R.string.the_first_result_is) + withoutDotWav(elementosBiblioteca.get(0).getName());
-                    if (elementosBiblioteca.size() >1) {
-                        speech = speech + getString(R.string.the_second_result_is)+ withoutDotWav(elementosBiblioteca.get(1).getName());
-                        if (elementosBiblioteca.size() >2){
-                            speech = speech + getString(R.string.the_third_result_is) + withoutDotWav(elementosBiblioteca.get(2).getName());
+            if (!mAdapter.displayedElements.isEmpty()){
+                if (mAdapter.getItem(0) != null){
+                    speech = getString(R.string.the_first_result_is) + withoutDotWav(((CustomAdapterElement)mAdapter.getItem(0)).getName());
+                    if (mAdapter.getCount() >1) {
+                        speech = speech + getString(R.string.the_second_result_is)+ withoutDotWav(((CustomAdapterElement)mAdapter.getItem(1)).getName());
+                        if (mAdapter.getCount() >2){
+                            speech = speech + getString(R.string.the_third_result_is) + withoutDotWav(((CustomAdapterElement)mAdapter.getItem(2)).getName());
                         }
                     }
                 }
@@ -746,21 +573,18 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
     private String withoutDotWav(String in){
         return in.replaceAll(".wav","");
     }
+
     private void switchSearch(String searchName) {
         recognizer.stop();
         // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
         if (searchName.equals(KWS_SEARCH)) {
-            System.out.println("switchSearch-KWS_SEARCH: "+ searchName);
-            recognizer.startListening(searchName);
+              recognizer.startListening(searchName);
         }else {
             recognizer.startListening(searchName, 10000);
-            System.out.println("switchSearch-NO_KWS_SEARCH:  " + searchName);
         }
         String caption = getResources().getString(captions.get(searchName));
-       // this.actionButton.setColorFilter(Color.argb(255, 255, 0, 0));
-         // ((TextView) findViewById(R.id.result_textBib)).setText("captionSwitchsear: " +caption);
-
     }
+
     private void setupRecognizer(File assetsDir) throws IOException {
         // The recognizer can be configured to perform multiple searches
         // of different kind and switch between them
@@ -771,36 +595,31 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 .getRecognizer();
 
         recognizer.addListener(this);
-        /* In your application you might not need to add all those searches.
-          They are added here for demonstration. You can leave just one.
-         */
+
         // Create keyword-activation search.
         recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
         // Create grammar-based search for selection between demos
         File menuGrammar = new File(assetsDir, "menu.gram");
         recognizer.addGrammarSearch(MENU_SEARCH, menuGrammar);
 
-
         File digitsGrammar = new File(assetsDir, "digitos.gram");
         recognizer.addGrammarSearch(ACTION_REPRODUCIR, digitsGrammar);
 
         File languageModel = new File(assetsDir, "es-es/es-es.lm");
-
         recognizer.addNgramSearch(ACTION_SEARCH, languageModel);
-
-
     }
     @Override
     public void onError(Exception error) {
-        //((TextView) findViewById(R.id.caption_text)).setText(error.getMessage());
-       // this.actionButton.setColorFilter(Color.argb(255, 255, 255, 255));
+        //empty
     }
     @Override
     public void onTimeout() {
         switchSearch(KWS_SEARCH);
     }
 
-    //end blind helper
+    //************************************************
+    //End of PocketSphinx RecongniterListener methods..
+    //************************************************
 
     private void requestStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -818,22 +637,13 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         }
     }
 
-    String text;
-
-    public TextToSpeech tts;
-
     public void ConvertTextToSpeech(String text) {
-        // TODO Auto-generated method stub
         if(text==null||"".equals(text))
         {
-            //text = "Content not available";
-          //  text = "contenido no disponible";
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
         }else
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
     }
-
-
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -841,7 +651,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         setContentView(R.layout.activity_nav_drawer);
         voiceNotesService = new VoiceNotesService();
         mapa = voiceNotesService.getVoiceNotesMap(getApplicationContext());
-        System.out.println("bib: entro en oncreate");
          tts = new TextToSpeech(this,  new TextToSpeech.OnInitListener() {
 
             @Override
@@ -869,10 +678,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             }
         });
 
-        //ConvertTextToSpeech("Wellcome back");
-       // ConvertTextToSpeech("Bienvenido");
-        //blind helper here
-
         // Prepare the data for UI
         captions = new HashMap<>();
         captions.put(KWS_SEARCH, R.string.kws_caption);
@@ -881,14 +686,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         captions.put(ACTION_EXIT, R.string.phone_caption);
         captions.put(ACTION_RECORD, R.string.forecast_caption);
         captions.put(ACTION_REPRODUCIR,R.string.reproducir_caption);
-
-        //((TextView) findViewById(R.id.caption_text))
-        //      .setText("Preparing the recognizer");
-        //this.actionButton.setColorFilter(Color.argb(255, 255, 255, 255));
-
-        // Recognizer initialization is a time-consuming and it involves IO,
-        // so we execute it in async task
-
 
         //solicitamos permisos de escritura:
         requestStoragePermission();
@@ -903,18 +700,8 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 currentSetup.execute();
             }
         }
-        //end blind helper
 
-
-
-
-        //inicializamos los elementos de la lista elementosBib..
-        elementosBiblioteca = new ArrayList<CustomAdapterElement>();
-        addAllAsCAEList(getKeys());// addAllAsCAEList(AudioMap.getkeys());
-        //   requestWindowFeature(Window.FEATURE_ACTION_BAR);
-
-        //////////////////////////////7nav drawer here
-
+        //////////////////////////////nav drawer here
         final DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbarTop, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -925,18 +712,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         addItemsRunTime(navigationView);
         navigationView.setNavigationItemSelectedListener(this);
 
-
-
-
-
-
-
-        /////////////////////////////7
-        ///////////////////////////
-
-
-        //fixme new toolbars here
-
         //botton bar
         abl = findViewById(R.id.botLayout);
         toolbarBot = (Toolbar) findViewById(R.id.toolbarBot);
@@ -945,7 +720,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         contadorSelecciones = (TextView) toolbarBot.findViewById(R.id.seleccionadosFromList);
         deleteFromlist = (ImageButton) toolbarBot.findViewById(R.id.deleteFromList);
         deleteFromlist.setOnClickListener(ButtonDeleteFromListListener);
-
 
         toolbarTop = (Toolbar) findViewById(R.id.toolbarTop);
         menuFromTopToolbar = toolbarTop.findViewById(R.id.menuDeLaToolbarTop);
@@ -976,10 +750,10 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                                 case R.id.filtroDuracion:
                                     currentFilter=getString(R.string.duracion);
                                     break;
-
                             }
-                            getFilteredList();//ordena elementosBiblioteca..
-                            loadListElementsFromMap(null);
+                            mAdapter.sortDisplayedElements();
+                            //getFilteredList();//ordena elementosBiblioteca..
+                            //loadListElementsFromMap(elementosBiblioteca);
 
                             return false;
                         }
@@ -995,7 +769,6 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
         backFromBusqueda.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 searchView.setVisibility(View.INVISIBLE);
                 backFromBusqueda.setVisibility(View.INVISIBLE);
                 searchButton.setVisibility(View.VISIBLE);
@@ -1004,57 +777,16 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 actionButton.setVisibility(View.VISIBLE);
                 menuFromTopToolbar.setVisibility(View.VISIBLE);
                 //estos 3 proximas lineas son para meter en la lista los elementos del mapa..antes teniamos los de la busqueda.
-                elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys());// addAllAsCAEList(AudioMap.getkeys());
-                loadListElementsFromMap(null);
-
+                updateListView();
+                //elementosBiblioteca.clear();
+                //addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
+                //loadListElementsFromMap(null);
             }
         });
         appName = toolbarTop.findViewById(R.id.toolbarText);
         searchButton= toolbarTop.findViewById(R.id.searchButton);
         searchView = toolbarTop.findViewById(R.id.searchImput);
-        //fixme until here
 
-
-
-        //action bar here
-        // android.support.v7.app.ActionBar mActionBar = getSupportActionBar();
-
-        //  System.out.println("BIBLIOTECA: mactionbar: "+mActionBar);
-        // mActionBar.setDisplayShowHomeEnabled(false);
-        // mActionBar.setDisplayShowTitleEnabled(false);
-        //   LayoutInflater mInflater = LayoutInflater.from(this);
-        // View mCustomView = mInflater.inflate(R.layout.activity_custom_action_bar, null);
-        //appName = mCustomView.findViewById(R.id.appName);
-        // quitarSelecciones = mCustomView.findViewById(R.id.quitarSelecciones);
-        // quitarSelecciones.setOnClickListener(buttonQuitarSeleccionesListener);
-        //deleteFromlist = mCustomView.findViewById(R.id.deleteFromList);
-        // deleteFromlist.setOnClickListener(ButtonDeleteFromListListener);
-        // filterButton = mCustomView.findViewById(R.id.filterBut);
-        //filterButton.setOnClickListener(new OnClickListener() {
-        //   @Override
-        // public void onClick(View view) {
-        //   //todo tags
-        //}
-        //});
-        // contadorSelecciones = mCustomView.findViewById(R.id.contadorSeleccionados );
-        //mActionBar.setCustomView(mCustomView);
-        //  mActionBar.setDisplayShowCustomEnabled(true);
-        //search de la action bar here
-        //menu = mCustomView.findViewById(R.id.menu);
-        //backFromBusqueda = mCustomView.findViewById(R.id.quitarBusquedaInput);
-        // backFromBusqueda.setOnClickListener(new OnClickListener() {
-        //   @Override
-        // public void onClick(View view) {
-        //   searchButton.setVisibility(View.VISIBLE);
-        // searchView.setVisibility(View.INVISIBLE);
-        //filterButton.setVisibility(View.INVISIBLE);
-        //   backFromBusqueda.setVisibility(View.INVISIBLE);
-        // appName.setVisibility(View.VISIBLE);
-        //menu.setVisibility(View.VISIBLE);
-        //}
-        //});
-        //  searchButton= mCustomView.findViewById(R.id.searchBut);
         searchButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -1068,226 +800,87 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                 backFromBusqueda.setVisibility(View.VISIBLE);
                 actionButton.setVisibility(View.INVISIBLE);
                 menuFromTopToolbar.setVisibility(View.INVISIBLE);
-
-
-
             }
         });
-        // searchView = mCustomView.findViewById(R.id.searchInput);
         searchView.setOnCloseListener(new SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
-
-                elementosBiblioteca.clear();
-                addAllAsCAEList(getKeys());// addAllAsCAEList(AudioMap.getkeys());
-                loadListElementsFromMap(null);
+                updateListView();
+                //elementosBiblioteca.clear();
+                //addAllAsCAEList(getKeys()); //cargamos "desde 0" todos los elementos @TODO ver si se puede conservar los elementos "originales" que hay en el adapter en lugar de volver a instanciar..
+               // loadListElementsFromMap(null);
                 searchView.setVisibility(View.INVISIBLE);
                 searchButton.setVisibility(View.VISIBLE);
                 appName.setVisibility(View.VISIBLE);
 
                 return false;
             }
-
         });
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-
             @Override
             public boolean onQueryTextSubmit(String s) {
                 String query = searchView.getQuery().toString();
-                System.out.println("LucActivity:  query: " + query);
-                if (query==null ||query==""){
-                    loadListElementsFromMap(null);
-                }else {
-                    try {
-                        try {
-                            audioSearcher = new AudioSearcher (getApplicationContext());
-                            System.out.println("Bib: audioSearch ini: " + audioSearcher);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        //todo if searcher ==null es que no hay elementos en el indice
-                        if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
-                            System.out.println("Bib: audioSearcher: " + audioSearcher);
-
-                            System.out.println("LucActivity: search:" + search);
-
-                            String[] bestDocs = new String[search.scoreDocs.length];
-                            int i = 0;
-                            System.out.println("LucActivity: totalHits..:" + search.totalHits);
-                            for (ScoreDoc doc : search.scoreDocs) {
-                                bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
-                                i++;
-                            }
-
-                            //System.out.println("LucActivity: bestDocs 1:" + bestDocs[0]);
-                            elementosBiblioteca.clear();
-                            //  ArrayList<String> temp = new ArrayList<String>();
-                            // for (String elem: AudioMap.getkeys()){
-                            //      temp.add(elem);
-                            //  }
-                            addAllAsCAEList(bestDocs);
-                            //for (String elem: bestDocs){
-
-                            //   if (temp.contains(elem)) {//si existe en el mapa es que no ha sido borrado..sino lo ignoramos (soluciÃ³n temporal al borrado del indice)
-                            //       elementosBiblioteca.add(new CustomAdapterElement(elem));
-                            //  }
-                            //}
-                        }else{ //no hay nada en el indice
-                            elementosBiblioteca.clear();
-                        }
-                        loadListElementsFromMap(null);
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    }
-                }
+                mAdapter.getFilter().filter(query); //@TODO comprobar funcionamiento de esot..viene a sustituir el load.. que instancia el adapter otra vez..
                 return false;
             }
             @Override
             public boolean onQueryTextChange(String s) {
                 String query = searchView.getQuery().toString();
-                System.out.println("LucActivity:  query: " + query);
-                if (query==null ||query==""){
-                    loadListElementsFromMap(null);
-                }else {
-                    try {
-                        try {
-                            //if (audioSearcher == null) {
-                                audioSearcher = new AudioSearcher(getApplicationContext());
-                            //}
-                            System.out.println("Bib: audioSearch ini: " + audioSearcher);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        //todo if searcher ==null es que no hay elementos en el indice
-                        if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
-                            System.out.println("Bib: audioSearcher: " + audioSearcher);
-
-                            System.out.println("LucActivity: search:" + search);
-
-                            String[] bestDocs = new String[search.scoreDocs.length];
-                            int i = 0;
-                            System.out.println("LucActivity: totalHits..:" + search.totalHits);
-                            for (ScoreDoc doc : search.scoreDocs) {
-                                bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
-                                i++;
-                            }
-
-                            //System.out.println("LucActivity: bestDocs 1:" + bestDocs[0]);
-                            elementosBiblioteca.clear();
-                            //  ArrayList<String> temp = new ArrayList<String>();
-                            // for (String elem: AudioMap.getkeys()){
-                            //      temp.add(elem);
-                            //  }
-                            addAllAsCAEList(bestDocs);
-                            //for (String elem: bestDocs){
-
-                            //   if (temp.contains(elem)) {//si existe en el mapa es que no ha sido borrado..sino lo ignoramos (soluciÃ³n temporal al borrado del indice)
-                            //       elementosBiblioteca.add(new CustomAdapterElement(elem));
-                            //  }
-                            //}
-                        }else{ //no hay nada en el indice
-                            elementosBiblioteca.clear();
-                        }
-                        loadListElementsFromMap(null);
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    }
-                }
+                mAdapter.getFilter().filter(query);
                 return false;
             }
         });
-
-
 
         actionButton = findViewById(R.id.fabNew);
         actionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                //detenemos el recognizer
-               // recognizer.stop();
                 Intent intent = new Intent(getApplicationContext(), RecordActivity.class);
-
-               RecordActivity.setBib(BibliotecaActivity.this);
+                RecordActivity.setBib(BibliotecaActivity.this);
                 startActivity(intent);
-
-
             }
         });
 
         audioView = findViewById(R.id.customList);
         audioView.setDivider(null);
-        ////   @Override
-        // public boolean onItemLongClick(AdapterView<?> arg0, View arg1,
-        //// ( (CustomAdapter)arg0.getAdapter()).changeChechBoxesVisibility();
 
-        //return true;
-        //}
-        //});
-        loadListElementsFromMap(null);
+        //mAdapter = new CustomAdapter(this, elementosBiblioteca); //primera inicialización del adapter..
 
+        //inicializamos los elementos de la lista elementosBib..
+        // elementosBiblioteca = new ArrayList<CustomAdapterElement>();
+        //addAllAsCAEList(getKeys());
+        updateListView();
 
-
+        //loadListElementsFromMap(null);
     }
 
-    private void loadListElementsFromMap(String[] elems){
-        //if (elems==null) {
-        //arrlis = new ArrayList<String>();
-        //     for (String elem : AudioMap.getkeys()) {
-        //   if (!AudioMap.getAudioInfo(elem).isInQueue())
-        //     arrlis.add(elem);
-        //  }
-        // System.out.println("arrlist elements:  " + arrlis.toString());
-        audioView.setAdapter(new CustomAdapter(this, this));
-        //}else{
-        //    List<String> lista =  new ArrayList<String>();
-        //    for (String item: elems){
-        //      lista.add(item);
-        //}
-        //udioView.setAdapter(new CustomAdapter(this, this,lista));
-        //}
-
+    private void loadListElementsFromMap(ArrayList<CustomAdapterElement> elems){
+        if (elems == null) {
+            mAdapter = new CustomAdapter(this, new ArrayList<CustomAdapterElement>());
+            audioView.setAdapter(mAdapter);
+        }else {
+            mAdapter = new CustomAdapter(this, elems);
+            audioView.setAdapter(mAdapter);
+        }
     }
-
-/*
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        System.out.println("entro listItemClick: pos: " +  position);
-        //llamamos a la activity de reproducir...y le pasamos por parÃ¡metro los elem necesarios
-        String name = arrlis.get(position);
-        Intent intent = new Intent(Biblioteca.this, PlaySelectedAudio.class);
-        intent.putExtra("audioName",name);
-        startActivity(intent);
-
-      //  Toast.makeText(this, item + " selected", Toast.LENGTH_LONG).show();
-    }
-    */
 
     OnClickListener buttonQuitarSeleccionesListener = new OnClickListener() {
         @Override
         public void onClick(View view) {
-            for (int i =0;i <elementosBiblioteca.size();i++){
-                elementosBiblioteca.get(i).setChecked(false);
+            for (int i =0;i <mAdapter.getCount();i++){
+                ((CustomAdapterElement)mAdapter.getItem(i)).setChecked(false);
             }
-
             contadorSelecciones.setText("1");
             setInvisible();
-            loadListElementsFromMap(null);
+            //loadListElementsFromMap(null);
+            updateListView();
         }
     };
 
     OnClickListener ButtonDeleteFromListListener = new OnClickListener() {
         @Override
         public void onClick(View view) {
-
-
-            for (CustomAdapterElement elem : ((ArrayList<CustomAdapterElement>)elementosBiblioteca.clone()) ) {
-
+            for (CustomAdapterElement elem : ((ArrayList<CustomAdapterElement>)mAdapter.displayedElements.clone()) ) {
                 if (elem.getChecked()) {
                     ArrayList<String> aa = new ArrayList<String>(){
                         @Override
@@ -1300,41 +893,21 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
                             return res;
                         }
                     };
-
-
-                    aa.addAll(Arrays.asList(getKeys()));
-                    System.out.println("audioMap antes de eliminar: "+aa.toString());
-                    //eliminamos de la memoria
-                   // File audioToDelete = (File) ObjectsManager.readFile(getApplicationContext(), "recordings", elem.getName());
-                  //  audioToDelete.delete(); //esto no sirve
-
-
-                  //  ObjectsManager.deleteFile(getApplicationContext(),elem.getName()); //esto puede que si..nueva imple de eliminar..probar..
-                    //eliminamos del mapa
-                  //  AudioMap.deleteAudioInfo(elem.getName(), getApplicationContext());
-                    //eliminamos del indice //todo comprobar si va bien
-                   // AudioIndexer.deleteFromIndex(elem.getName());
                     voiceNotesService.deleteVoiceNote(getApplicationContext(),elem.getName());
                     mapa.remove(elem.getName());
-
                     //eliminamos de arrList y audioChecked (este ultimo simplemente al instanciar adapr otra vez es suficiente..)
-                    elementosBiblioteca.remove(elem);
-                    aa.clear();
-                    aa.addAll(Arrays.asList(getKeys()));
-                    System.out.println("onDeleteBib: audioMapKeys: " +aa.toString() + "elementosBib: "+elementosBiblioteca.toString() );
+                    //elementosBiblioteca.remove(elem);
                 }
-
             }
             setInvisible();
             // actualizamos la vista incializando el adapter otra vez.
-            loadListElementsFromMap(null);
+            //loadListElementsFromMap(null);
+            updateListView();
         }
     };
-
-
+/* //TODO file open para importar..
     OnClickListener buttonOpenOnClickListener
             = new OnClickListener(){
-
         @Override
         public void onClick(View arg0) {
             Intent intent = new Intent();
@@ -1343,51 +916,268 @@ public class BibliotecaActivity extends AppCompatActivity implements NavigationV
             startActivityForResult(Intent.createChooser(
                     intent, "Open Audio (mp3) file"), RQS_OPEN_AUDIO_MP3);
         }};
-
+*/
 
     public void setVisible(){
         abl.setVisibility(View.VISIBLE);
         actionButton.setVisibility(View.INVISIBLE);
-        // buttonShare.setVisibility(View.VISIBLE);
-        // buttonDelete.setVisibility(View.VISIBLE);
-        // appName.setVisibility(View.INVISIBLE);
-        // menu.setVisibility(View.INVISIBLE);
-        //searchButton.setVisibility(View.INVISIBLE);
-        //searchView.setVisibility(View.INVISIBLE);
-        //  filterButton.setVisibility(View.INVISIBLE);
-        //  backFromBusqueda.setVisibility(View.INVISIBLE);
-        //searchView.setVisibility(View.INVISIBLE);
-        //deleteFromlist.setVisibility(View.VISIBLE);
-        //contadorSelecciones.setVisibility(View.VISIBLE);
-        //quitarSelecciones.setVisibility(View.VISIBLE);
-
     }
+
     public void setInvisible(){
         abl.setVisibility(GONE);
         actionButton.setVisibility(View.VISIBLE);
-        // buttonShare.setVisibility(View.INVISIBLE);
-        //  buttonDelete.setVisibility(View.INVISIBLE);
-        // appName.setVisibility(View.VISIBLE);
-        // menu.setVisibility(View.VISIBLE);
-        //searchButton.setVisibility(View.VISIBLE);
-        // backFromBusqueda.setVisibility(View.INVISIBLE);
-        // filterButton.setVisibility(View.INVISIBLE);
-        // searchView.setVisibility(View.INVISIBLE);
-        //deleteFromlist.setVisibility(View.INVISIBLE);
-        //contadorSelecciones.setVisibility(View.INVISIBLE);
-        //quitarSelecciones.setVisibility(View.INVISIBLE);
     }
-private String[] getKeys(){
-    return mapa.keySet().toArray(new String[mapa.keySet().size()]);
-}
 
-private void updateLanguage(){
+    private String[] getKeys(){ //@TODO crear una clase helper que contenga todas estas operaciones genéricas
+        return mapa.keySet().toArray(new String[mapa.keySet().size()]);
+    }
 
+    private void updateLanguage(){
         if (DefaultSettingsXmlParser.getCurrentLenguage().equals("english")){
             tts.setLanguage(new Locale("en"));
         }else{
             tts.setLanguage(new Locale("spa", "ESP"));
         }
-}
+    }
 
+    public class CustomAdapter extends BaseAdapter implements Filterable {
+        private LayoutInflater inflater = null;
+        Context contexto;
+        private Integer checkCount;
+        List<Boolean> audioChecked ;
+        boolean checksVisibles=false;
+        private int checkedItemWhileLongClick =0;
+
+        private ArrayList<CustomAdapterElement> originalElements;
+        private ArrayList<CustomAdapterElement> displayedElements;
+
+        public CustomAdapter(Context contexto, ArrayList<CustomAdapterElement> productionElements){
+            this.contexto=contexto;
+            originalElements = new ArrayList<CustomAdapterElement>(productionElements);
+            displayedElements = new ArrayList<CustomAdapterElement>(productionElements);
+            checkCount=1;
+            audioChecked = new ArrayList<Boolean>();
+            inflater = (LayoutInflater) contexto.getSystemService(contexto.LAYOUT_INFLATER_SERVICE);
+        }
+
+        public void changeChechBoxesVisibility(){
+            this.checksVisibles=(!checksVisibles);
+            setVisible();
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getCount() {
+            return displayedElements.size();
+        }
+
+        @Override
+        public Object getItem(int i) {
+            return displayedElements.get(i);
+        }
+
+        @Override
+        public long getItemId(int i) {
+            return i;
+        }
+
+        private String parseToDuracion(Date date){
+            SimpleDateFormat formato = new SimpleDateFormat("mm:ss");
+            String duration =formato.format(date);
+            return  duration;
+        }
+        private String parseToFecha(Date date){
+            return new SimpleDateFormat("dd-MM-yyyy").format(date);
+        }
+
+        @Override
+        public View getView(final int i, View view, ViewGroup viewGroup) {
+
+            final View vista = inflater.inflate(R.layout.elemento_lista, null);
+            final TextView audioName = vista.findViewById(R.id.audioName);
+            final TextView fecha = vista.findViewById(R.id.fecha);
+            final TextView duracion = vista.findViewById(R.id.duracion);
+            audioName.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    checkedItemWhileLongClick = i;
+                    changeChechBoxesVisibility();
+                    displayedElements.get(i).setChecked(true);
+                    return false;
+                }
+            });
+            final CheckBox boxElminar = vista.findViewById(R.id.checkBoxEliminar);
+            if (i== checkedItemWhileLongClick){
+                boxElminar.setChecked(true);
+            }
+            if (checksVisibles) {
+                boxElminar.setVisibility(View.VISIBLE);
+                boxElminar.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                        if (isChecked) {
+                            checkCount++;
+                            displayedElements.get(i).setChecked(true);
+                            contadorSelecciones.setText(checkCount.toString());
+                            setVisible();
+                        } else {
+                            checkCount--;
+                            contadorSelecciones.setText(checkCount.toString());
+                            displayedElements.get(i).setChecked(false);
+                            if (checkCount == 0) {
+                                checksVisibles=false;
+                                checkCount=1;
+                                contadorSelecciones.setText("1");
+                                setInvisible();
+                            }
+                        }
+                        notifyDataSetChanged();
+                    }
+                });
+            }else{
+                bib.setInvisible();
+                boxElminar.setVisibility(View.INVISIBLE);
+            }
+            if (displayedElements.size()>0) {
+                final AudioInfo audioInfo = mapa.get(displayedElements.get(i).getName()); //bib.elementosBiblioteca.get(i).getName()
+                if (audioInfo == null) {
+                    //no mostramos ese elemento, porque no existe en el mapa..
+                    displayedElements.remove(i);
+                    notifyDataSetChanged();
+                }else {
+                    final String name = audioInfo.getName().replaceFirst(".wav","");
+                    fecha.setText(contexto.getString(R.string.fecha) +": "+parseToFecha(audioInfo.getFechaCreacion()));
+                    duracion.setText(contexto.getString(R.string.duracion) +": "+parseToDuracion(audioInfo.getDuration()));
+                    audioName.setText(name);
+                    audioName.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            //AudioPlayer dialog here.
+                            final Dialog dialog = new Dialog(bib);
+                            File audioFile = bib.voiceNotesService.getAudioFile(contexto,audioInfo.getName());
+                            final AudioPlayer player = new AudioPlayer(bib, audioInfo.getName(),audioFile,dialog);
+                            bib.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() { //este dialog si lo mostramos porque va sin asistente por voz..es decir, si hay que msotrar ui ..
+                                    dialog.show();
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            return vista;
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                protected void publishResults(CharSequence constraint,FilterResults results) {
+
+                    displayedElements = (ArrayList<CustomAdapterElement>) results.values; // has the filtered values
+                    notifyDataSetChanged();  // notifies the data with new filtered values
+                }
+
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults results = new FilterResults();        // Holds the results of a filtering operation in values
+                    ArrayList<CustomAdapterElement> FilteredArrList = new ArrayList<CustomAdapterElement>();
+
+                    if (originalElements == null) {
+                        originalElements = new ArrayList<CustomAdapterElement>(displayedElements); // saves the original data in mOriginalValues
+                    }
+
+                    /********
+                     *
+                     *  If constraint(CharSequence that is received) is null returns the mOriginalValues(Original) values
+                     *  else does the Filtering and returns FilteredArrList(Filtered)
+                     *
+                     ********/
+                    if (constraint == null || constraint.length() == 0) {
+
+                        // set the Original result to return
+                        results.count = originalElements.size();
+                        results.values = originalElements;
+                    } else {
+                        constraint = constraint.toString().toLowerCase();
+                        String query = constraint.toString();
+                        try {
+                            try {
+                                audioSearcher = new AudioSearcher (getApplicationContext());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            //todo if searcher ==null es que no hay elementos en el indice
+                            if ((audioSearcher!=null)&&((search = audioSearcher.search(query)) != null)) {
+                                String[] bestDocs = new String[search.scoreDocs.length];
+                                int i = 0;
+                                for (ScoreDoc doc : search.scoreDocs) {
+                                    bestDocs[i] = audioSearcher.getDocument(doc).get(LuceneConstants.FILE_NAME);
+                                    i++;
+                                }
+                                displayedElements = getProductionElementsFilteredByActiveTag(bestDocs);
+
+                            }else{ //no hay nada en el indice
+                                displayedElements.clear();
+                            }
+
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                        }
+
+                        // set the Filtered result to return
+                        results.count = FilteredArrList.size();
+                        results.values = FilteredArrList;
+                    }
+                    return results;
+                }
+            };
+            notifyDataSetChanged();
+            return filter;
+        }
+
+        public void sortDisplayedElements(){
+            Collections.sort(displayedElements, new Comparator<CustomAdapterElement>() {
+                @Override
+                public int compare(CustomAdapterElement e1, CustomAdapterElement e2) {
+                    if (currentFilter.contentEquals("nombre")) {
+                        if (e1.getName() == null || e2.getName() == null)
+                            return 0;
+                        return e1.getName().compareTo(e2.getName());
+                    }else if (currentFilter.contentEquals("fecha")){
+                        if (e1.getDate() == null || e2.getDate() == null)
+                            return 0;
+                        return e1.getDate().compareTo(e2.getDate());
+                    }else{ //duración
+                        if (e1.getDuration() == null || e2.getDuration() == null)
+                            return 0;
+                        return e1.getDuration().compareTo(e2.getDuration());
+                    }
+                }
+            });
+            notifyDataSetChanged();
+        }
+        /** modifica la displayed list en base al tag seleccionado por el usuario*/
+        public void filterByTag(String tag){
+            if (activeTag.contentEquals("Home")){
+                displayedElements.clear();
+                displayedElements.addAll(originalElements);
+            }else {
+                for (CustomAdapterElement ele : originalElements) {
+                    displayedElements.clear();
+                    AudioInfo ai = mapa.get(ele.getName());
+                    if (ai != null && ai.getTag().contentEquals(activeTag)) {
+                        displayedElements.add(ele);
+                    }
+                }
+            }
+            notifyDataSetChanged();
+        }
+    }
 }
